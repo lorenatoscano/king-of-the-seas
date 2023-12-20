@@ -1,22 +1,23 @@
 extends Area2D
-const bulletPath = preload('res://Bullet.tscn')
 
+const bulletPath = preload('res://Bullet.tscn')
 
 # Declare member variables here. Examples:
 var alive = true
 export var speed = 200 # How fast the player will move (pixels/sec).
-export var velocity = Vector2.ZERO # The player's movement vector.
+export var velocity = Vector2.ZERO  # The player's movement vector.
 var bulletVelocity = Vector2.ZERO
-var screen_size # Size of the game window.
+var screen_size  # Size of the game window.
 signal hit
 
+var canShoot = true
+var shootCooldown = 1.0  
+var timeSinceLastShot = 0.0
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	screen_size = get_viewport_rect().size
 	alive = true
-	
-
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
@@ -40,31 +41,36 @@ func _process(delta):
 		rotation = velocity.angle()
 	else:
 		$AnimatedSprite.stop()
-		
+
 	position += velocity * delta
 	position.x = clamp(position.x, 0, screen_size.x)
 	position.y = clamp(position.y, 0, screen_size.y)
-	
-	if Input.is_action_just_pressed("ui_accept"):
-		if alive:
-			shoot()
-	#$Node2D.look_at(get_global_mouse_position())
 
+	if Input.is_action_just_pressed("ui_accept"):
+		if alive and canShoot:
+			shoot()
+
+	timeSinceLastShot += delta
+	if timeSinceLastShot >= shootCooldown:
+		canShoot = true
 
 func _on_Player_body_entered(body):
-	hide() # Player disappears after being hit.
+	hide()
 	emit_signal("hit")
 	# Must be deferred as we can't change physics properties on a physics callback.
 	$CollisionShape2D.set_deferred("disabled", true)
 	alive = false
-	
+
 func start(pos):
 	position = pos
 	show()
 	$CollisionShape2D.disabled = false
-	
+
 func shoot():
 	var bullet = bulletPath.instance()
 	get_parent().add_child(bullet)
 	bullet.position = $Node2D/Position2D.global_position
 	bullet.velocity = bulletVelocity
+
+	canShoot = false
+	timeSinceLastShot = 0.0
